@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Issue Credential</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Issue Credential</h1>
+    <p class="lead">Click the button below to issue a badge to the logged-in user.</p>
+
+    <div id="learnCardConnectArea" class="card">
+      <p id="lcStatus">Connect your LearnCard to allow issuing credentials.</p>
+      <button id="connectLearnCardBtn">Connect with LearnCard</button>
+    </div>
+
+    <div style="margin-top:18px;">
+      <button id="issueBadgeBtn" disabled>Issue Badge</button>
+    </div>
+
+    <div id="resultArea" class="card result" style="display:none; margin-top:18px;">
+      <h3>Result</h3>
+      <p id="resultMessage"></p>
+      <p>Credential URI: <a id="resultUri" href="#" target="_blank"></a></p>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -19,21 +19,52 @@ if (!process.env.SECURE_SEED) {
 const profileId   = process.env.PROFILE_ID   || 'my-awesome-org-profile';
 const profileName = process.env.PROFILE_NAME || 'My Awesome Org';
 
-// Universal Inbox
+// Universal Inbox 
 const API_BASE = (process.env.LEARNCARD_API_BASE || 'https://network.learncard.com').replace(/\/$/, '');
 const API_KEY  = process.env.LEARNCARD_API_KEY;
 const TEST_RECIPIENT_EMAIL = process.env.TEST_RECIPIENT_EMAIL || 'student@example.com';
 
 // ====== UNIVERSAL INBOX HELPERS ======
 async function inboxIssue({ recipient, credential, configuration = {}, consentRequest }) {
-  if (!API_KEY) throw new Error('Missing LEARNCARD_API_KEY in .env');
-  const res = await fetch(`${API_BASE}/api/inbox/issue`, {
+  if (!API_KEY) {
+    console.error('LEARNCARD_API_KEY is not set in environment.');
+    throw new Error('Missing LEARNCARD_API_KEY in .env');
+  }
+
+  // Resolve endpoint whether API_BASE already includes "/api" or not
+  const endpoint = API_BASE.endsWith('/api') ? `${API_BASE}/inbox/issue` : `${API_BASE}/api/inbox/issue`;
+
+  // Diagnostics
+  console.error('LearnCard API_BASE:', API_BASE);
+  console.error('LearnCard endpoint:', endpoint);
+  console.error('Using LEARNCARD_API_KEY (masked):', `${API_KEY.slice(0,6)}...${API_KEY.slice(-4)}`);
+
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { Authorization: `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipient, credential, configuration, ...(consentRequest ? { consentRequest } : {}) })
+    body: JSON.stringify({ recipient, credential, configuration, ...(consentRequest ? { consentRequest } : {}) }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || data?.error || `Inbox issue failed (${res.status})`);
+
+  // Read raw text then attempt to parse JSON for robust debug logging
+  const raw = await res.text().catch(() => '');
+  let data = {};
+  try { data = JSON.parse(raw || '{}'); } catch (e) { data = { rawText: raw }; }
+
+  // More diagnostics
+  try {
+    const hdrs = Object.fromEntries(res.headers ? res.headers.entries() : []);
+    console.error('LearnCard response status:', res.status);
+    console.error('LearnCard response headers:', JSON.stringify(hdrs));
+  } catch (e) {
+    console.error('Could not read response headers:', e?.message || e);
+  }
+  console.error('LearnCard response body:', JSON.stringify(data).slice(0, 2000));
+
+  if (!res.ok) {
+    const msg = data?.message || data?.error || data?.detail || data?.rawText || `Inbox issue failed (${res.status})`;
+    throw new Error(`${msg} (status ${res.status})`);
+  }
+
   return data; // { issuanceId, claimUrl? }
 }
 
@@ -202,9 +233,9 @@ async function quickstartBoost() {
         recipientName: 'Your Learner'      // optional
       },
       suppressDelivery: false,               // set true to get claimUrl back and no email sent
-      // webhookUrl: process.env.WEBHOOK_PUBLIC_URL, // optional: receive CLAIMED events
-      // signingAuthority: { name: 'my-signer', endpoint: 'https://my-vc-api.my-org.com/issue' }, // optional override
-      // consentRequest: { scopes: ['credential:write:Badge'], description: 'Allow auto-delivery of future badges.' } // BETA
+      webhookUrl: process.env.WEBHOOK_PUBLIC_URL, // optional: receive CLAIMED events
+      signingAuthority: { name: 'my-signer', endpoint: 'https://my-vc-api.my-org.com/issue' }, // optional override
+      consentRequest: { scopes: ['credential:write:Badge'], description: 'Allow auto-delivery of future badges.' } // BETA
     });
 
     if (inboxResp.claimUrl) {
